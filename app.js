@@ -36,13 +36,17 @@ const statusText = document.getElementById("status");
 const logoutButton = document.getElementById("logout-button");
 const lastUpdateText = document.getElementById("last-update");
 const latestInfoText = document.getElementById("latest-info");
+const metricVolume = document.getElementById("metric-volume");
+const metricTemperature = document.getElementById("metric-temperature");
+const metricHumidity = document.getElementById("metric-humidity");
+const metricHeatingStatus = document.getElementById("metric-heating-status");
 
 // Chart configurations
 const chartConfigs = [
-  { key: "volume", label: "Restvolumen (m³)", color: "#d97706", elementId: "volume-chart" },
-  { key: "distance", label: "Restfüllhöhe (cm)", color: "#16a34a", elementId: "distance-chart" },
-  { key: "temperature", label: "Temperatur (°C)", color: "#ef4444", elementId: "temperature-chart" },
-  { key: "humidity", label: "Luftfeuchtigkeit (%)", color: "#2563eb", elementId: "humidity-chart" },
+  { key: "volume", i18n: "remainingVolume", color: "#d97706", elementId: "volume-chart" },
+  { key: "distance", i18n: "remainingHeight", color: "#16a34a", elementId: "distance-chart" },
+  { key: "temperature", i18n: "temperature", color: "#e87516", elementId: "temperature-chart" },
+  { key: "humidity", i18n: "humidity", color: "#2377ba", elementId: "humidity-chart" },
 ];
 
 // Room calculation constants
@@ -60,6 +64,76 @@ const valIstAn = document.getElementById("val-ist-an");
 const valAsche = document.getElementById("val-asche");
 const valMenge = document.getElementById("val-menge");
 const heatingErrorsList = document.getElementById("heating-errors-list");
+const languageButtons = document.querySelectorAll("[data-language]");
+
+const translations = {
+  de: {
+    heatingTitle: "Deine Heizung", loginHint: "Melde dich mit deinem Firebase User-Account an.",
+    email: "E-Mail", password: "Passwort", login: "Anmelden", pelletStock: "Pelletvorrat",
+    currentStock: "Aktueller Bestand", temperature: "Temperatur", humidity: "Luftfeuchtigkeit",
+    roomStable: "Innenraum · stabil", roomOptimal: "Innenraum · optimal", heatingStatus: "Heizungsstatus",
+    etaPelletUnit: "ETA PelletUnit", systemStatus: "Anlagenstatus", active: "● Aktiv",
+    operatingState: "Betriebszustand", pelletAmount: "Pelletmenge", ash: "Asche",
+    systemMessages: "Systemmeldungen", noErrors: "Keine aktiven Fehler gemeldet.",
+    history: "Verlauf", last30Days: "Messwerte der letzten 30 Tage", logout: "Logout",
+    remainingVolume: "Restvolumen", remainingHeight: "Resthöhe", activeState: "🟢 An", inactiveState: "🔴 Aus",
+    noMeasurements: "Keine Messwerte in den letzten 30 Tagen gefunden.",
+    noValidMeasurements: "Keine gültigen Messwerte gefunden.", loaded: "Messwerte geladen.",
+    lastMeasurement: "Letzte Messung", currentVolume: "Aktuelles Restvolumen",
+    lastUpdate: "Letztes Update der Anlage", estimated: "ca. {value} kg (geschätzt)",
+    loadError: "Fehler beim Laden der Daten aus Firestore.", loginError: "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen."
+  },
+  en: {
+    heatingTitle: "Your heating system", loginHint: "Sign in with your Firebase user account.",
+    email: "Email", password: "Password", login: "Sign in", pelletStock: "Pellet stock",
+    currentStock: "Current stock", temperature: "Temperature", humidity: "Humidity",
+    roomStable: "Indoor · stable", roomOptimal: "Indoor · optimal", heatingStatus: "Heating status",
+    etaPelletUnit: "ETA PelletUnit", systemStatus: "System status", active: "● Active",
+    operatingState: "Operating state", pelletAmount: "Pellet amount", ash: "Ash",
+    systemMessages: "System messages", noErrors: "No active errors reported.",
+    history: "History", last30Days: "Measurements from the last 30 days", logout: "Sign out",
+    remainingVolume: "Remaining volume", remainingHeight: "Remaining height", activeState: "🟢 On", inactiveState: "🔴 Off",
+    noMeasurements: "No measurements found in the last 30 days.",
+    noValidMeasurements: "No valid measurements found.", loaded: "measurements loaded.",
+    lastMeasurement: "Last measurement", currentVolume: "Current remaining volume",
+    lastUpdate: "Last system update", estimated: "approx. {value} kg (estimated)",
+    loadError: "Error loading data from Firestore.", loginError: "Sign-in failed. Please check your email and password."
+  }
+};
+
+let currentLanguage = localStorage.getItem("language") === "en" ? "en" : "de";
+let latestMeasurements = [];
+let latestHeatingDoc = null;
+let estimatedAshValue = null;
+const t = (key) => translations[currentLanguage][key] || key;
+const formatTimestamp = (value) => {
+  const timestampMillis = normalizeTimestampToMillis(value);
+  return Number.isFinite(timestampMillis) ? new Date(timestampMillis).toLocaleString(currentLanguage === "en" ? "en-GB" : "de-DE") : "-";
+};
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage;
+  document.title = currentLanguage === "en" ? "Pellet Heating Dashboard" : "Pellet Heizung Dashboard";
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  languageButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.language === currentLanguage));
+  if (latestMeasurements.length) {
+    renderCharts(latestMeasurements);
+    updateMeasurementText(latestMeasurements[latestMeasurements.length - 1], latestMeasurements.length);
+  }
+  if (latestHeatingDoc) {
+    updateHeatingLanguage();
+  }
+}
+
+languageButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    currentLanguage = button.dataset.language;
+    localStorage.setItem("language", currentLanguage);
+    applyLanguage();
+  });
+});
 
 // Hilfsfunktion: Parst einen ETA-XML-String und gibt den 'strValue' oder Text aus
 function parseEtaXml(xmlString) {
@@ -133,8 +207,27 @@ function normalizeTimestampToMillis(value) {
 }
 
 function timestampToLabel(value) {
-  const timestampMillis = normalizeTimestampToMillis(value);
-  return Number.isFinite(timestampMillis) ? new Date(timestampMillis).toLocaleString("de-DE") : "-";
+  return formatTimestamp(value);
+}
+
+function updateMeasurementText(latestMeasurement, measurementCount) {
+  lastUpdateText.textContent = `${t("lastMeasurement")}: ${timestampToLabel(latestMeasurement.timestamp)}`;
+  latestInfoText.textContent = `${t("currentVolume")}: ${latestMeasurement.volume} m³ | ${t("temperature")}: ${latestMeasurement.temperature} °C | ${t("humidity")}: ${latestMeasurement.humidity} %`;
+  statusText.textContent = `${measurementCount} ${t("loaded")}`;
+}
+
+function updateHeatingLanguage() {
+  heatingTimestampText.textContent = `${t("lastUpdate")}: ${timestampToLabel(latestHeatingDoc.timestamp)}`;
+  const isAn = latestHeatingDoc.ist_an === true;
+  metricHeatingStatus.textContent = isAn ? t("active").replace("● ", "") : t("inactiveState").replace("🔴 ", "");
+  valIstAn.textContent = isAn ? t("activeState") : t("inactiveState");
+  if (estimatedAshValue) {
+    valAsche.textContent = t("estimated").replace("{value}", estimatedAshValue);
+  }
+  if (heatingErrorsList.children.length === 1 &&
+      (heatingErrorsList.textContent === translations.de.noErrors || heatingErrorsList.textContent === translations.en.noErrors)) {
+    heatingErrorsList.firstElementChild.textContent = t("noErrors");
+  }
 }
 
 function destroyCharts() {
@@ -162,7 +255,7 @@ function renderCharts(measurements) {
         labels,
         datasets: [
           {
-            label: config.label,
+            label: t(config.i18n),
             data: values,
             borderColor: config.color,
             backgroundColor: config.color,
@@ -215,7 +308,7 @@ async function loadLast30Days() {
   }
 
   if (snapshot.empty) {
-    statusText.textContent = "Keine Messwerte in den letzten 30 Tagen gefunden.";
+    statusText.textContent = t("noMeasurements");
     lastUpdateText.textContent = "";
     latestInfoText.textContent = "";
     destroyCharts();
@@ -249,7 +342,7 @@ async function loadLast30Days() {
     );
 
   if (!allMeasurements.length) {
-    statusText.textContent = "Keine gültigen Messwerte gefunden.";
+    statusText.textContent = t("noValidMeasurements");
     lastUpdateText.textContent = "";
     latestInfoText.textContent = "";
     destroyCharts();
@@ -259,13 +352,12 @@ async function loadLast30Days() {
   allMeasurements.sort((a, b) => normalizeTimestampToMillis(b.timestamp) - normalizeTimestampToMillis(a.timestamp));
 
   const latestMeasurement = allMeasurements[0];
-  lastUpdateText.textContent = `Letzte Messung: ${timestampToLabel(latestMeasurement.timestamp)}`;
-  latestInfoText.textContent = `Aktuelles Restvolumen: ${latestMeasurement.volume} m³ | Temperatur: ${latestMeasurement.temperature} °C | Luftfeuchtigkeit: ${latestMeasurement.humidity} %`;
-
-  const chartMeasurements = allMeasurements.slice(0, 30).reverse();
-
-  statusText.textContent = `${chartMeasurements.length} Messwerte geladen.`;
-  renderCharts(chartMeasurements);
+  latestMeasurements = allMeasurements.slice(0, 30).reverse();
+  metricVolume.textContent = latestMeasurement.volume.toFixed(2);
+  metricTemperature.textContent = latestMeasurement.temperature.toFixed(1);
+  metricHumidity.textContent = latestMeasurement.humidity.toFixed(1);
+  updateMeasurementText(latestMeasurement, latestMeasurements.length);
+  renderCharts(latestMeasurements);
 }
 
 // Funktion zum Laden des aktuellen Heizungsstatus aus der "heizung"-Collection
@@ -275,18 +367,22 @@ async function loadHeatingStatus() {
     const snapshot = await getDocs(q);
 
     if (!snapshot.empty && heatingStatusSection) {
-      const latestHeatingDoc = snapshot.docs[0].data();
+      latestHeatingDoc = snapshot.docs[0].data();
       
       heatingStatusSection.classList.remove("hidden");
       
       if (heatingTimestampText) {
-        heatingTimestampText.textContent = `Letztes Update der Anlage: ${timestampToLabel(latestHeatingDoc.timestamp)}`;
+        heatingTimestampText.textContent = `${t("lastUpdate")}: ${timestampToLabel(latestHeatingDoc.timestamp)}`;
       }
       
       // ist_an Status
       const isAn = latestHeatingDoc.ist_an;
+      if (metricHeatingStatus) {
+        metricHeatingStatus.textContent = isAn === true ? t("active").replace("● ", "") : t("inactiveState").replace("🔴 ", "");
+        metricHeatingStatus.style.color = isAn === true ? "#16834e" : "#b42318";
+      }
       if (valIstAn) {
-        valIstAn.textContent = isAn === true ? "🟢 An" : "🔴 Aus";
+        valIstAn.textContent = isAn === true ? t("activeState") : t("inactiveState");
         valIstAn.style.color = isAn === true ? "green" : "red";
       }
       
@@ -299,7 +395,8 @@ async function loadHeatingStatus() {
         const rawMengeNum = parseFloat(mengeText); // Extrahiert die Zahl aus "5 kg" -> 5
         if (!isNaN(rawMengeNum) && rawMengeNum > 0) {
           const estimatedAshKg = (rawMengeNum * 0.006).toFixed(2); // ca. 0.6% Aschefaktor
-          valAsche.textContent = `ca. ${estimatedAshKg} kg (geschätzt)`; // Fallback falls parsen fehlschlägt: normaler XML-Parser
+          estimatedAshValue = estimatedAshKg;
+          valAsche.textContent = t("estimated").replace("{value}", estimatedAshKg);
         } else {
           // Fallback falls parsen fehlschlägt: normaler XML-Parser
           valAsche.textContent = parseEtaXml(latestHeatingDoc.xml_asche);
@@ -326,7 +423,7 @@ async function loadHeatingStatus() {
           });
         } else {
           const li = document.createElement("li");
-          li.textContent = "Keine aktiven Fehler gemeldet.";
+          li.textContent = t("noErrors");
           li.style.color = "white";
           heatingErrorsList.appendChild(li);
         }
@@ -350,7 +447,7 @@ loginForm.addEventListener("submit", async (e) => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
-    loginError.textContent = "Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.";
+    loginError.textContent = t("loginError");
     console.error(error);
   }
 });
@@ -367,13 +464,16 @@ onAuthStateChanged(auth, async (user) => {
     statusText.textContent = "";
     lastUpdateText.textContent = "";
     latestInfoText.textContent = "";
+    latestMeasurements = [];
+    latestHeatingDoc = null;
+    estimatedAshValue = null;
     if (heatingStatusSection) heatingStatusSection.classList.add("hidden");
     return;
   }
 
   setLoginVisible(false);
   setDashboardVisible(true);
-  statusText.textContent = "Lade Daten…";
+  statusText.textContent = currentLanguage === "en" ? "Loading data…" : "Lade Daten…";
 
   try {
     await Promise.all([
@@ -381,7 +481,9 @@ onAuthStateChanged(auth, async (user) => {
       loadHeatingStatus()
     ]);
   } catch (error) {
-    statusText.textContent = "Fehler beim Laden der Daten aus Firestore.";
+    statusText.textContent = t("loadError");
     console.error(error);
   }
 });
+
+applyLanguage();
