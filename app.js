@@ -43,10 +43,10 @@ const metricHeatingStatus = document.getElementById("metric-heating-status");
 
 // Chart configurations
 const chartConfigs = [
-  { key: "volume", i18n: "remainingVolume", color: "#d97706", elementId: "volume-chart" },
-  { key: "distance", i18n: "remainingHeight", color: "#16a34a", elementId: "distance-chart" },
-  { key: "temperature", i18n: "temperature", color: "#e87516", elementId: "temperature-chart" },
-  { key: "humidity", i18n: "humidity", color: "#2377ba", elementId: "humidity-chart" },
+  { key: "volume", i18n: "remainingVolume", unit: "m³", color: "#d97706", elementId: "volume-chart" },
+  { key: "distance", i18n: "remainingHeight", unit: "cm", color: "#16a34a", elementId: "distance-chart" },
+  { key: "temperature", i18n: "temperature", unit: "°C", color: "#e87516", elementId: "temperature-chart" },
+  { key: "humidity", i18n: "humidity", unit: "%", color: "#2377ba", elementId: "humidity-chart" },
 ];
 
 // Room calculation constants
@@ -194,6 +194,7 @@ function setLoginVisible(isVisible) {
 
 function setDashboardVisible(isVisible) {
   dashboardSection.classList.toggle("hidden", !isVisible);
+  logoutButton.classList.toggle("hidden", !isVisible);
 }
 
 function normalizeTimestampToMillis(value) {
@@ -241,13 +242,16 @@ function renderCharts(measurements) {
   destroyCharts();
 
   const labels = measurements.map((item) => timestampToLabel(item.timestamp));
-  const isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches === true;
-  const chartTextColor = isDarkMode ? "#e6edf3" : "#1f2933";
-  const chartGridColor = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+  const chartTextColor = "#718078";
+  const chartGridColor = "rgba(32, 65, 48, 0.08)";
 
   for (const config of chartConfigs) {
     const canvas = document.getElementById(config.elementId);
     const values = measurements.map((item) => item[config.key]);
+    const context = canvas.getContext("2d");
+    const gradient = context.createLinearGradient(0, 0, 0, canvas.clientHeight || 220);
+    gradient.addColorStop(0, `${config.color}35`);
+    gradient.addColorStop(1, `${config.color}00`);
 
     const chart = new Chart(canvas, {
       type: "line",
@@ -258,27 +262,71 @@ function renderCharts(measurements) {
             label: t(config.i18n),
             data: values,
             borderColor: config.color,
-            backgroundColor: config.color,
-            tension: 0.2,
-            fill: false,
-            pointRadius: 2,
+            backgroundColor: gradient,
+            borderWidth: 3,
+            tension: 0.38,
+            cubicInterpolationMode: "monotone",
+            fill: "origin",
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBorderWidth: 3,
+            pointHoverBackgroundColor: "#fff",
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: { labels: { color: chartTextColor } }
+          legend: {
+            position: "top",
+            align: "start",
+            labels: {
+              color: chartTextColor,
+              usePointStyle: true,
+              pointStyle: "line",
+              boxWidth: 28,
+              padding: 18,
+              font: { size: 11, weight: "600" },
+            },
+          },
+          tooltip: {
+            displayColors: false,
+            padding: 12,
+            backgroundColor: "#172a21",
+            titleColor: "#d3ed71",
+            bodyColor: "#fff",
+            cornerRadius: 10,
+            callbacks: {
+              label: (context) => `${context.parsed.y.toLocaleString(currentLanguage === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 2 })} ${config.unit}`,
+            },
+          },
         },
         scales: {
           x: {
-            ticks: { color: chartTextColor, maxRotation: 45, minRotation: 45 },
-            grid: { color: chartGridColor }
+            border: { display: false },
+            ticks: {
+              color: chartTextColor,
+              maxRotation: 0,
+              minRotation: 0,
+              maxTicksLimit: 6,
+              padding: 8,
+              font: { size: 10 },
+              callback: (_, index) => {
+                const timestamp = normalizeTimestampToMillis(measurements[index].timestamp);
+                return Number.isFinite(timestamp)
+                  ? new Date(timestamp).toLocaleDateString(currentLanguage === "en" ? "en-GB" : "de-DE", { day: "2-digit", month: "2-digit" })
+                  : "";
+              },
+            },
+            grid: { display: false }
           },
           y: {
-            ticks: { color: chartTextColor },
-            grid: { color: chartGridColor }
+            border: { display: false },
+            beginAtZero: false,
+            ticks: { color: chartTextColor, padding: 8, font: { size: 10 }, maxTicksLimit: 5 },
+            grid: { color: chartGridColor, drawTicks: false }
           }
         },
       },

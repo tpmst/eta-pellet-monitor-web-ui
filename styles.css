@@ -10,9 +10,11 @@
 body { margin: 0; min-width: 320px; background: #f4f7f4; }
 
 .container { width: 100%; max-width: 1240px; margin: 0 auto; padding: 4px 6px 32px; }
-.language-switch { display: flex; justify-content: flex-end; gap: 2px; margin-bottom: 8px; }
+.top-controls { display: flex; justify-content: flex-end; align-items: center; gap: 12px; min-height: 31px; margin-bottom: 8px; }
+.language-switch { display: flex; justify-content: flex-end; gap: 2px; }
 .language-button { border: 1px solid #d6e0da; border-radius: 7px; padding: 5px 9px; background: #fff; color: #718078; font-size: 11px; }
 .language-button.is-active { border-color: #16834e; background: #16834e; color: #fff; }
+.logout-button { border: 0; padding: 5px 0; background: transparent; color: #547064; font-size: 12px; font-weight: 700; }
 .hidden { display: none !important; }
 .hint { color: #718078; margin: 6px 0 0; font-size: 13px; }
 .eyebrow { margin: 0 0 8px; color: #16834e; font-size: 11px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase; }
@@ -25,7 +27,6 @@ label { display: grid; gap: 6px; color: #34483e; font-size: 13px; font-weight: 7
 input, button { border: 1px solid #d6e0da; border-radius: 9px; padding: 11px 12px; font: inherit; }
 input { background: #fbfcfb; color: #10251c; }
 button { cursor: pointer; border-color: #16834e; background: #16834e; color: #fff; font-weight: 700; }
-button.secondary { border: 0; background: transparent; color: #547064; font-size: 12px; padding: 5px 0; }
 .error { min-height: 20px; color: #b42318; font-size: 13px; }
 
 .metric-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 14px; }
@@ -66,11 +67,11 @@ button.secondary { border: 0; background: transparent; color: #547064; font-size
 .history-actions { display: flex; align-items: flex-end; flex-direction: column; gap: 8px; }
 .history-actions .hint { margin-top: 9px; }
 .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
-.chart-card { height: 276px; padding: 21px; }
+.chart-card { height: 290px; padding: 21px 21px 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(21, 54, 38, .035); }
 .chart-title { display: flex; justify-content: space-between; align-items: center; }
 .chart-title h2 { margin: 0; font-size: 14px; }
 .chart-title span { color: #718078; font-size: 11px; }
-.chart-card canvas { width: 100% !important; height: 210px !important; margin-top: 10px; }
+.chart-card canvas { width: 100% !important; height: 220px !important; margin-top: 7px; }
 
 @media (max-width: 850px) {
   .metric-grid { grid-template-columns: 1fr 1fr; }

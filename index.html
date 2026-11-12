@@ -11,9 +11,12 @@
   </head>
   <body>
     <main class="container">
-      <div class="language-switch" role="group" aria-label="Language">
+      <div class="top-controls">
+        <button id="logout-button" class="logout-button hidden" type="button" data-i18n="logout">Logout</button>
+        <div class="language-switch" role="group" aria-label="Language">
         <button type="button" class="language-button is-active" data-language="de">DE</button>
         <button type="button" class="language-button" data-language="en">EN</button>
+        </div>
       </div>
       <section id="login-section" class="login-card">
         <p class="eyebrow">ETA PELLETUNIT</p>
@@ -85,7 +88,6 @@
             </div>
             <div class="history-actions">
               <p id="last-update" class="hint"></p>
-              <button id="logout-button" type="button" class="secondary" data-i18n="logout">Logout</button>
             </div>
           </div>
           <div class="chart-grid">
