@@ -22,7 +22,7 @@ ETA-Heizung ── lokale HTTP/XML-API ──> ESP32
 ```
 
 Das Frontend ist Teil des Gesamtsystems und wird durch die Firmware aus dem
-separaten Repository [`tpmst/esp32-HC-SR04-AHT25-firebase`](https://github.com/tpmst/esp32-HC-SR04-AHT25-firebase)
+separaten Repository [`tpmst/esp32-pellet-monitor`](https://github.com/tpmst/esp32-HC-SR04-AHT25-firebase)
 mit Daten versorgt.
 
 ## Funktionen
