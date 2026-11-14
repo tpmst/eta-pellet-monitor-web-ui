@@ -9,6 +9,8 @@ lokalen Netzwerk: Der ESP32 liest ihre lokale ETA-API aus und überträgt die
 relevanten Daten anschließend in die Cloud. Dadurch muss die Heizung nicht
 direkt aus dem Internet erreichbar sein.
 
+[`Lovedemo`](https://pelletsense.tpmst.xyz/)
+
 ## Systemübersicht
 
 ```text
